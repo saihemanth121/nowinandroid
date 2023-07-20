@@ -41,6 +41,11 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                 defaultConfig.targetSdk = 33
                 configureFlavors(this)
                 configureGradleManagedDevices(this)
+                buildTypes {
+                    debug {
+                        enableAndroidTestCoverage = true
+                    }
+                }
             }
             extensions.configure<LibraryAndroidComponentsExtension> {
                 configurePrintApksTask(this)

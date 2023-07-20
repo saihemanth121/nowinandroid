@@ -35,6 +35,11 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 configureKotlinAndroid(this)
                 defaultConfig.targetSdk = 33
                 configureGradleManagedDevices(this)
+                buildTypes {
+                    debug {
+                        enableAndroidTestCoverage = true
+                    }
+                }
             }
             extensions.configure<ApplicationAndroidComponentsExtension> {
                 configurePrintApksTask(this)

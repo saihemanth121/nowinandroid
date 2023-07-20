@@ -28,6 +28,7 @@ import java.util.Locale
 internal fun configureGradleManagedDevices(
     commonExtension: CommonExtension<*, *, *, *>,
 ) {
+    return // Use connected device
     val deviceConfigs = listOf(
         DeviceConfig("Pixel 4", 30, "aosp-atd"),
         DeviceConfig("Pixel 6", 31, "aosp"),
