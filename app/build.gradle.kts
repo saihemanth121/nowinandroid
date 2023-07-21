@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 import com.google.samples.apps.nowinandroid.NiaBuildType
+import groovy.xml.XmlSlurper
+import groovy.xml.slurpersupport.NodeChild
 
 plugins {
     id("nowinandroid.android.application")
@@ -222,6 +224,44 @@ tasks.register<JacocoReport>("jacocoUiTestFullReport") {
     executionData.setFrom(execution)
 
     doLast {
-        println("file://${reports.html.outputLocation}/index.html")
+        println("file://${reports.html.outputLocation.get()}/index.html")
+        if(project.hasProperty("teamcity")) {
+            val result = reports.xml.outputLocation.get().asFile
+            reportCoverageTeamCity(result)
+        }
+    }
+}
+
+fun reportCoverageTeamCity(xmlReport: File) {
+    if (xmlReport == null || !xmlReport.canRead()) {
+        return
+    }
+
+    val parser = XmlSlurper().apply {
+        setFeature("http://apache.org/xml/features/disallow-doctype-decl", false)
+        setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+    }
+    val counters = parser.parse(xmlReport).parent().children().filter {
+        (it as NodeChild).name() == "counter"
+    } as List<NodeChild>
+
+    val metrics = mapOf(
+        "CodeCoverageAbsB" to "INSTRUCTION", // aka Block
+        "CodeCoverageAbsR" to "BRANCH",
+        "CodeCoverageAbsL" to "LINE",
+        "JacocoComplexity" to "COMPLEXITY",
+        "CodeCoverageAbsM" to "METHOD",
+        "CodeCoverageAbsC" to "CLASS"
+    )
+
+    metrics.forEach { (metric: String, type: String) ->
+        val counter = counters.find { it.attributes()["type"] == type }!!
+        val missed = counter.attributes()["missed"].toString().toInt()
+        val covered = counter.attributes()["covered"].toString().toInt()
+
+        println("##teamcity[buildStatisticValue key='${metric}Total' value = '${missed + covered}']")
+        println("##teamcity[buildStatisticValue key='${metric}Covered' value = '$covered']")
+        println("teamcity[buildStatisticValue key='${metric}Total' value = '${missed + covered}']")
+        println("teamcity[buildStatisticValue key='${metric}Covered' value = '$covered']")
     }
 }
