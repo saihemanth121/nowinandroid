@@ -129,3 +129,99 @@ configurations.configureEach {
         force("org.objenesis:objenesis:2.6")
     }
 }
+
+tasks.register<JacocoReport>("jacocoUiTestFullReport") {
+    group = "Reports"
+    description = "Generate Jacoco Instrumented Tests coverage reports for all modules"
+
+    // Run android tests in all modules
+    dependsOn(rootProject.getTasksByName("createDemoDebugAndroidTestCoverageReport", true))
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        html.outputLocation.set(file("${rootProject.buildDir}/coverage-report"))
+    }
+
+    val fileFilter = listOf(
+        // data binding
+        "android/databinding/**/*.class",
+        "**/android/databinding/*Binding.class",
+        "**/android/databinding/*",
+        "**/androidx/databinding/*",
+        "**/BR.*",
+        // android
+        "**/R.class",
+        "**/R$*.class",
+        "**/BuildConfig.*",
+        "**/Manifest*.*",
+        "**/*Test*.*",
+        "android/**/*.*",
+        // butterKnife
+        "**/*\$ViewInjector*.*",
+        "**/*\$ViewBinder*.*",
+        // dagger
+        "**/*_MembersInjector.class",
+        "**/Dagger*Component.class",
+        "**/Dagger*Component\$Builder.class",
+        "**/*Module_*Factory.class",
+        "**/di/module/*",
+        "**/*_Factory*.*",
+        "**/*Module*.*",
+        "**/*Dagger*.*",
+        "**/*Hilt*.*",
+        // kotlin
+        "**/*MapperImpl*.*",
+        "**/*\$ViewInjector*.*",
+        "**/*\$ViewBinder*.*",
+        "**/*Component*.*",
+        "**/*BR*.*",
+        "**/*\$Lambda$*.*",
+        "**/*Companion*.*",
+        "**/*Module*.*",
+        "**/*Dagger*.*",
+        "**/*Hilt*.*",
+        "**/*MembersInjector*.*",
+        "**/*_MembersInjector.class",
+        "**/*_GeneratedInjector.class",
+        "**/*_Factory*.*",
+        "**/*_Provide*Factory*.*",
+        "**/*Extensions*.*",
+        // sealed and data classes
+        "**/*$Result.*",
+        "**/*$Result$*.*"
+    )
+
+    val javaClasses = mutableListOf<FileCollection>()
+    val kotlinClasses = mutableListOf<FileCollection>()
+    val javaSrc = mutableListOf<String>()
+    val kotlinSrc = mutableListOf<String>()
+    val execution = mutableListOf<FileCollection>()
+
+    rootProject.subprojects.forEach { proj ->
+        if (proj.tasks.findByName("createDemoDebugAndroidTestCoverageReport") == null) {
+            // Skip projects which dont have androidTest
+            println("jacocoUiTestReportAllModules: Skipping ${proj.name}")
+            return@forEach
+        }
+        javaClasses.add(fileTree("${proj.buildDir}/intermediates/javac/demoDebug") {
+            exclude(fileFilter)
+        })
+        kotlinClasses.add(fileTree("${proj.buildDir}/tmp/kotlin-classes/demoDebug") {
+            exclude(fileFilter)
+        })
+        javaSrc.add("${proj.projectDir}/src/main/java")
+        kotlinSrc.add("${proj.projectDir}/src/main/kotlin")
+        execution.add(fileTree(proj.buildDir) {
+            include("outputs/code_coverage/demoDebugAndroidTest/connected/**/*.ec")
+        })
+    }
+
+    sourceDirectories.setFrom(files(javaSrc, kotlinSrc))
+    classDirectories.setFrom(files(javaClasses, kotlinClasses))
+    executionData.setFrom(execution)
+
+    doLast {
+        println("file://${reports.html.outputLocation}/index.html")
+    }
+}
